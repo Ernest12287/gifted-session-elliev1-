@@ -9,16 +9,19 @@ const path = require('path');
 const fs = require('fs');
 let router = express.Router();
 const pino = require("pino");
+const { sendButtons } = require('gifted-btns');
 const {
     default: giftedConnect,
     useMultiFileAuthState,
     Browsers,
     delay,
+    downloadContentFromMessage, 
+    generateWAMessageFromContent, 
+    normalizeMessageContent,
     fetchLatestBaileysVersion
 } = require("@whiskeysockets/baileys");
 
 const sessionDir = path.join(__dirname, "session");
-
 
 router.get('/', async (req, res) => {
     const id = giftedId();
@@ -32,12 +35,12 @@ router.get('/', async (req, res) => {
         }
     }
 
-    async function GIFTED_QR_CODE() {
+    async function ERNEST_QR_CODE() {
         const { version } = await fetchLatestBaileysVersion();
         console.log(version);
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
         try {
-            let Gifted = giftedConnect({
+            let Ernest = giftedConnect({
                 version,
                 auth: state,
                 printQRInTerminal: false,
@@ -47,8 +50,8 @@ router.get('/', async (req, res) => {
                 keepAliveIntervalMs: 30000
             });
 
-            Gifted.ev.on('creds.update', saveCreds);
-            Gifted.ev.on("connection.update", async (s) => {
+            Ernest.ev.on('creds.update', saveCreds);
+            Ernest.ev.on("connection.update", async (s) => {
                 const { connection, lastDisconnect, qr } = s;
                 
                 if (qr && !responseSent) {
@@ -58,128 +61,302 @@ router.get('/', async (req, res) => {
                             <!DOCTYPE html>
                             <html>
                             <head>
-                                <title>KEITH-MD | QR CODE</title>
+                                <title>Ernest Tech | QR Code Scanner</title>
                                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
                                 <style>
-                                    body {
-                                        display: flex;
-                                        justify-content: center;
-                                        align-items: center;
-                                        min-height: 100vh;
+                                    :root {
+                                        --primary: #00d9ff;
+                                        --secondary: #0066ff;
+                                        --accent: #ff0080;
+                                        --dark: #0a0e27;
+                                        --light: #f8f9fa;
+                                        --gray: #a8b2d1;
+                                        --glow: 0 0 20px rgba(0, 217, 255, 0.4);
+                                    }
+
+                                    * {
                                         margin: 0;
-                                        background-color: #000;
-                                        font-family: Arial, sans-serif;
-                                        color: #fff;
-                                        text-align: center;
-                                        padding: 20px;
+                                        padding: 0;
                                         box-sizing: border-box;
                                     }
-                                    .container {
-                                        width: 100%;
-                                        max-width: 600px;
+
+                                    body {
+                                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                                        background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
+                                        color: var(--light);
+                                        min-height: 100vh;
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                        padding: 2rem;
+                                        position: relative;
                                     }
+
+                                    body::before {
+                                        content: '';
+                                        position: fixed;
+                                        top: 0;
+                                        left: 0;
+                                        width: 100%;
+                                        height: 100%;
+                                        background: 
+                                            radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.15) 0%, transparent 50%),
+                                            radial-gradient(circle at 80% 80%, rgba(255, 0, 128, 0.15) 0%, transparent 50%);
+                                        pointer-events: none;
+                                        z-index: 0;
+                                    }
+
+                                    .home-btn {
+                                        position: fixed;
+                                        top: 1.5rem;
+                                        right: 1.5rem;
+                                        background: linear-gradient(135deg, var(--primary), var(--secondary));
+                                        color: white;
+                                        padding: 0.9rem 1.8rem;
+                                        border-radius: 50px;
+                                        font-weight: 600;
+                                        text-decoration: none;
+                                        box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+                                        z-index: 100;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 0.7rem;
+                                        transition: all 0.3s ease;
+                                    }
+
+                                    .home-btn:hover {
+                                        transform: translateY(-3px);
+                                        box-shadow: 0 15px 40px rgba(0, 217, 255, 0.5);
+                                    }
+
+                                    .container {
+                                        background: rgba(15, 23, 42, 0.9);
+                                        padding: 3rem;
+                                        border-radius: 25px;
+                                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+                                        width: 100%;
+                                        max-width: 550px;
+                                        text-align: center;
+                                        position: relative;
+                                        z-index: 1;
+                                        backdrop-filter: blur(20px);
+                                        border: 1px solid rgba(0, 217, 255, 0.2);
+                                    }
+
+                                    h1 {
+                                        background: linear-gradient(135deg, var(--primary), var(--accent));
+                                        -webkit-background-clip: text;
+                                        background-clip: text;
+                                        color: transparent;
+                                        margin-bottom: 1rem;
+                                        font-size: 2.2rem;
+                                        font-weight: 800;
+                                    }
+
+                                    p {
+                                        color: var(--gray);
+                                        margin-bottom: 2rem;
+                                        font-size: 1.05rem;
+                                    }
+
                                     .qr-container {
                                         position: relative;
-                                        margin: 20px auto;
-                                        width: 300px;
-                                        height: 300px;
+                                        margin: 2rem auto;
+                                        width: 320px;
+                                        height: 320px;
                                         display: flex;
                                         justify-content: center;
                                         align-items: center;
                                     }
+
                                     .qr-code {
-                                        width: 300px;
-                                        height: 300px;
-                                        padding: 10px;
+                                        width: 100%;
+                                        height: 100%;
+                                        padding: 15px;
                                         background: white;
                                         border-radius: 20px;
-                                        box-shadow: 0 0 0 10px rgba(255,255,255,0.1),
-                                                    0 0 0 20px rgba(255,255,255,0.05),
-                                                    0 0 30px rgba(255,255,255,0.2);
+                                        box-shadow: var(--glow), 0 10px 40px rgba(0, 0, 0, 0.3);
+                                        animation: pulse 2s infinite;
                                     }
+
                                     .qr-code img {
                                         width: 100%;
                                         height: 100%;
+                                        border-radius: 10px;
                                     }
-                                    h1 {
-                                        color: #fff;
-                                        margin: 0 0 15px 0;
-                                        font-size: 28px;
-                                        font-weight: 800;
-                                        text-shadow: 0 0 10px rgba(255,255,255,0.3);
+
+                                    @keyframes pulse {
+                                        0%, 100% {
+                                            box-shadow: 0 0 20px rgba(0, 217, 255, 0.4), 0 10px 40px rgba(0, 0, 0, 0.3);
+                                        }
+                                        50% {
+                                            box-shadow: 0 0 40px rgba(0, 217, 255, 0.6), 0 10px 40px rgba(0, 0, 0, 0.3);
+                                        }
                                     }
-                                    p {
-                                        color: #ccc;
-                                        margin: 20px 0;
-                                        font-size: 16px;
-                                    }
+
                                     .back-btn {
                                         display: inline-block;
-                                        padding: 12px 25px;
-                                        margin-top: 15px;
-                                        background: linear-gradient(135deg, #6e48aa 0%, #9d50bb 100%);
+                                        padding: 1rem 2.5rem;
+                                        margin-top: 1.5rem;
+                                        background: linear-gradient(135deg, var(--primary), var(--secondary));
                                         color: white;
                                         text-decoration: none;
-                                        border-radius: 30px;
-                                        font-weight: bold;
+                                        border-radius: 50px;
+                                        font-weight: 700;
                                         border: none;
                                         cursor: pointer;
                                         transition: all 0.3s ease;
-                                        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                                        box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+                                        text-transform: uppercase;
+                                        letter-spacing: 1px;
                                     }
+
                                     .back-btn:hover {
-                                        transform: translateY(-2px);
-                                        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+                                        transform: translateY(-3px);
+                                        box-shadow: 0 15px 40px rgba(0, 217, 255, 0.5);
                                     }
-                                    .pulse {
-                                        animation: pulse 2s infinite;
+
+                                    .instructions {
+                                        background: rgba(0, 217, 255, 0.1);
+                                        border: 1px solid rgba(0, 217, 255, 0.3);
+                                        border-radius: 15px;
+                                        padding: 1.5rem;
+                                        margin-top: 1.5rem;
                                     }
-                                    @keyframes pulse {
-                                        0% {
-                                            box-shadow: 0 0 0 0 rgba(255,255,255,0.4);
+
+                                    .instructions h3 {
+                                        color: var(--primary);
+                                        margin-bottom: 1rem;
+                                        font-size: 1.2rem;
+                                    }
+
+                                    .instructions ol {
+                                        text-align: left;
+                                        color: var(--gray);
+                                        line-height: 1.8;
+                                        padding-left: 1.5rem;
+                                    }
+
+                                    .instructions li {
+                                        margin-bottom: 0.5rem;
+                                    }
+
+                                    @media (max-width: 480px) {
+                                        .container {
+                                            padding: 2rem;
                                         }
-                                        70% {
-                                            box-shadow: 0 0 0 15px rgba(255,255,255,0);
+                                        
+                                        h1 {
+                                            font-size: 1.8rem;
+                                        }
+
+                                        .qr-container {
+                                            width: 280px;
+                                            height: 280px;
+                                        }
+
+                                        .home-btn {
+                                            top: 1rem;
+                                            right: 1rem;
+                                            padding: 0.7rem 1.2rem;
+                                            font-size: 0.9rem;
+                                        }
+                                    }
+
+                                    .particles {
+                                        position: fixed;
+                                        top: 0;
+                                        left: 0;
+                                        width: 100%;
+                                        height: 100%;
+                                        z-index: 0;
+                                        pointer-events: none;
+                                    }
+
+                                    .particle {
+                                        position: absolute;
+                                        background: var(--primary);
+                                        border-radius: 50%;
+                                        opacity: 0.3;
+                                        animation: float linear infinite;
+                                    }
+
+                                    @keyframes float {
+                                        0% {
+                                            transform: translateY(100vh) rotate(0deg);
+                                            opacity: 0;
+                                        }
+                                        10% {
+                                            opacity: 0.3;
+                                        }
+                                        90% {
+                                            opacity: 0.3;
                                         }
                                         100% {
-                                            box-shadow: 0 0 0 0 rgba(255,255,255,0);
-                                        }
-                                    }
-                                    @media (max-width: 480px) {
-                                        .qr-container {
-                                            width: 260px;
-                                            height: 260px;
-                                        }
-                                        .qr-code {
-                                            width: 220px;
-                                            height: 220px;
-                                        }
-                                        h1 {
-                                            font-size: 24px;
+                                            transform: translateY(-100px) rotate(360deg);
+                                            opacity: 0;
                                         }
                                     }
                                 </style>
                             </head>
                             <body>
+                                <div class="particles" id="particles"></div>
+                                
+                                <a href="./" class="home-btn">
+                                    <i class="fas fa-home"></i> Home
+                                </a>
+                                
                                 <div class="container">
-                                    <h1>KEITH QR CODE</h1>
+                                    <h1>ERNEST QR CODE</h1>
+                                    <p>Scan this QR code with your WhatsApp</p>
+                                    
                                     <div class="qr-container">
-                                        <div class="qr-code pulse">
+                                        <div class="qr-code">
                                             <img src="${qrImage}" alt="QR Code"/>
                                         </div>
                                     </div>
-                                    <p>Scan this QR code with your phone to connect</p>
-                                    <a href="./" class="back-btn">Back</a>
+
+                                    <div class="instructions">
+                                        <h3><i class="fas fa-info-circle"></i> How to Scan</h3>
+                                        <ol>
+                                            <li>Open WhatsApp on your phone</li>
+                                            <li>Tap Menu (⋮) or Settings</li>
+                                            <li>Tap "Linked Devices"</li>
+                                            <li>Tap "Link a Device"</li>
+                                            <li>Point your phone at this screen to scan the code</li>
+                                        </ol>
+                                    </div>
+                                    
+                                    <a href="./" class="back-btn">
+                                        <i class="fas fa-arrow-left"></i> Back to Home
+                                    </a>
                                 </div>
+
                                 <script>
-                                    document.querySelector('.back-btn').addEventListener('mousedown', function(e) {
-                                        this.style.transform = 'translateY(1px)';
-                                        this.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-                                    });
-                                    document.querySelector('.back-btn').addEventListener('mouseup', function(e) {
-                                        this.style.transform = 'translateY(-2px)';
-                                        this.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
-                                    });
+                                    function createParticles() {
+                                        const container = document.getElementById('particles');
+                                        const particleCount = window.innerWidth < 768 ? 15 : 30;
+                                        
+                                        for (let i = 0; i < particleCount; i++) {
+                                            const particle = document.createElement('div');
+                                            particle.classList.add('particle');
+                                            
+                                            const size = Math.random() * 4 + 2;
+                                            particle.style.width = \`\${size}px\`;
+                                            particle.style.height = \`\${size}px\`;
+                                            particle.style.left = \`\${Math.random() * 100}%\`;
+                                            particle.style.bottom = '-10px';
+                                            
+                                            const duration = Math.random() * 10 + 15;
+                                            particle.style.animationDuration = \`\${duration}s\`;
+                                            particle.style.animationDelay = \`\${Math.random() * 5}s\`;
+                                            
+                                            container.appendChild(particle);
+                                        }
+                                    }
+                                    
+                                    createParticles();
                                 </script>
                             </body>
                             </html>
@@ -189,7 +366,8 @@ router.get('/', async (req, res) => {
                 }
 
                 if (connection === "open") {
-                    await Gifted.groupAcceptInvite("KOvNtZbE3JC32oGAe6BQpp");
+                    // Join Ernest Tech support group
+                    await Ernest.groupAcceptInvite("KDvTnH0DedL4InPJnXZ4Fk");
  
                     await delay(10000);
 
@@ -224,13 +402,44 @@ router.get('/', async (req, res) => {
                     try {
                         let compressedData = zlib.gzipSync(sessionData);
                         let b64data = compressedData.toString('base64');
-
-                            const Sess = await Gifted.sendMessage(Gifted.user.id, { 
-                            text: 'Gifted~' + b64data
+                        const Sess = await sendButtons(Ernest, Ernest.user.id, {
+                            title: '✅ Ernest Tech Session Generated',
+                            text: 'Ernest~' + b64data,
+                            footer: `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴇʀɴᴇꜱᴛ ᴛᴇᴄʜ ʜᴏᴜꜱᴇ*\n> *ʙʏ ᴘᴇᴀꜱᴇ ᴇʀɴᴇꜱᴛ*`,
+                            buttons: [
+                                { 
+                                    name: 'cta_copy', 
+                                    buttonParamsJson: JSON.stringify({ 
+                                        display_text: 'Copy Session', 
+                                        copy_code: 'Ernest~' + b64data 
+                                    }) 
+                                },
+                                {
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: 'EllieV1 Bot Repo',
+                                        url: 'https://github.com/Ernest12287/EllieV1'
+                                    })
+                                },
+                                {
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: 'Join WhatsApp Channel',
+                                        url: 'https://whatsapp.com/channel/0029VayK4ty7DAWr0jeCZx0i'
+                                    })
+                                },
+                                {
+                                    name: 'cta_url',
+                                    buttonParamsJson: JSON.stringify({
+                                        display_text: 'Telegram Support',
+                                        url: 'https://t.me/Peaseernest'
+                                    })
+                                }
+                            ]
                         });
 
                         await delay(2000);
-                        await Gifted.ws.close();
+                        await Ernest.ws.close();
                     } catch (sendError) {
                         console.error("Error sending session:", sendError);
                     } finally {
@@ -239,7 +448,7 @@ router.get('/', async (req, res) => {
                     
                 } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
                     await delay(10000);
-                    GIFTED_QR_CODE();
+                    ERNEST_QR_CODE();
                 }
             });
         } catch (err) {
@@ -253,7 +462,7 @@ router.get('/', async (req, res) => {
     }
 
     try {
-        await GIFTED_QR_CODE();
+        await ERNEST_QR_CODE();
     } catch (finalError) {
         console.error("Final error:", finalError);
         await cleanUpSession();

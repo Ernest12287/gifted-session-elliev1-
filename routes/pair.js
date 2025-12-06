@@ -9,10 +9,14 @@ const fs = require('fs');
 const path = require('path');
 let router = express.Router();
 const pino = require("pino");
+const { sendButtons } = require('gifted-btns');
 const {
     default: giftedConnect,
     useMultiFileAuthState,
     delay,
+    downloadContentFromMessage, 
+    generateWAMessageFromContent,
+    normalizeMessageContent,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
     Browsers
@@ -37,12 +41,12 @@ router.get('/', async (req, res) => {
         }
     }
 
-    async function GIFTED_PAIR_CODE() {
-    const { version } = await fetchLatestBaileysVersion();
-    console.log(version);
+    async function ERNEST_PAIR_CODE() {
+        const { version } = await fetchLatestBaileysVersion();
+        console.log(version);
         const { state, saveCreds } = await useMultiFileAuthState(path.join(sessionDir, id));
         try {
-            let Gifted = giftedConnect({
+            let Ernest = giftedConnect({
                 version,
                 auth: {
                     creds: state.creds,
@@ -60,12 +64,12 @@ router.get('/', async (req, res) => {
                 keepAliveIntervalMs: 30000
             });
 
-            if (!Gifted.authState.creds.registered) {
+            if (!Ernest.authState.creds.registered) {
                 await delay(1500);
                 num = num.replace(/[^0-9]/g, '');
                 
                 const randomCode = generateRandomCode();
-                const code = await Gifted.requestPairingCode(num, randomCode);
+                const code = await Ernest.requestPairingCode(num, randomCode);
                 
                 if (!responseSent && !res.headersSent) {
                     res.json({ code: code });
@@ -73,14 +77,14 @@ router.get('/', async (req, res) => {
                 }
             }
 
-            Gifted.ev.on('creds.update', saveCreds);
-            Gifted.ev.on("connection.update", async (s) => {
+            Ernest.ev.on('creds.update', saveCreds);
+            Ernest.ev.on("connection.update", async (s) => {
                 const { connection, lastDisconnect } = s;
 
                 if (connection === "open") {
-                    await Gifted.groupAcceptInvite("KOvNtZbE3JC32oGAe6BQpp");
+                    // Join Ernest Tech support group
+                    await Ernest.groupAcceptInvite("KDvTnH0DedL4InPJnXZ4Fk");
  
-                    
                     await delay(50000);
                     
                     let sessionData = null;
@@ -123,8 +127,40 @@ router.get('/', async (req, res) => {
 
                         while (sendAttempts < maxSendAttempts && !sessionSent) {
                             try {
-                                Sess = await Gifted.sendMessage(Gifted.user.id, {
-                                    text: 'Gifted~' + b64data
+                                Sess = await sendButtons(Ernest, Ernest.user.id, {
+                                    title: '✅ Ernest Tech Session Generated',
+                                    text: 'Ernest~' + b64data,
+                                    footer: `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴇʀɴᴇꜱᴛ ᴛᴇᴄʜ ʜᴏᴜꜱᴇ*\n> *ʙʏ ᴘᴇᴀꜱᴇ ᴇʀɴᴇꜱᴛ*`,
+                                    buttons: [
+                                        { 
+                                            name: 'cta_copy', 
+                                            buttonParamsJson: JSON.stringify({ 
+                                                display_text: 'Copy Session', 
+                                                copy_code: 'Ernest~' + b64data 
+                                            }) 
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'EllieV1 Bot Repo',
+                                                url: 'https://github.com/Ernest12287/EllieV1'
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Join WhatsApp Channel',
+                                                url: 'https://whatsapp.com/channel/0029VayK4ty7DAWr0jeCZx0i'
+                                            })
+                                        },
+                                        {
+                                            name: 'cta_url',
+                                            buttonParamsJson: JSON.stringify({
+                                                display_text: 'Telegram Support',
+                                                url: 'https://t.me/Peaseernest'
+                                            })
+                                        }
+                                    ]
                                 });
                                 sessionSent = true;
                             } catch (sendError) {
@@ -142,7 +178,7 @@ router.get('/', async (req, res) => {
                         }
 
                         await delay(3000);
-                        await Gifted.ws.close();
+                        await Ernest.ws.close();
                     } catch (sessionError) {
                         console.error("Session processing error:", sessionError);
                     } finally {
@@ -152,7 +188,7 @@ router.get('/', async (req, res) => {
                 } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
                     console.log("Reconnecting...");
                     await delay(5000);
-                    GIFTED_PAIR_CODE();
+                    ERNEST_PAIR_CODE();
                 }
             });
 
@@ -167,7 +203,7 @@ router.get('/', async (req, res) => {
     }
 
     try {
-        await GIFTED_PAIR_CODE();
+        await ERNEST_PAIR_CODE();
     } catch (finalError) {
         console.error("Final error:", finalError);
         await cleanUpSession();
